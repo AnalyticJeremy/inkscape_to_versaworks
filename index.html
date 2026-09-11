@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'"
+    />
+    <meta
+      name="description"
+      content="Convert magenta and red vector cut lines in Inkscape PDFs into VersaWorks spot colors, entirely in your browser."
+    />
+    <meta name="theme-color" content="#0f6cbd" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Inkscape to VersaWorks</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Inkscape to VersaWorks home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M7 7h18v18H7z" />
+              <path d="M5 22 22 5M13 27 27 13" />
+            </svg>
+          </span>
+          <span>Inkscape to VersaWorks</span>
+        </a>
+        <span class="local-pill">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M10 2.2 16 4.7v4.5c0 4-2.4 6.8-6 8.6-3.6-1.8-6-4.6-6-8.6V4.7l6-2.5Z" />
+            <path d="m7.2 9.8 1.8 1.8 3.9-4" />
+          </svg>
+          Private by design
+        </span>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">Print-and-cut preparation</p>
+            <h1 id="page-title">Make Inkscape PDFs ready for VersaWorks.</h1>
+            <p class="hero-copy">
+              Turn magenta and red vector strokes into the exact Roland
+              <strong>CutContour</strong> and <strong>PerfCutContour</strong>
+              spot colors without uploading your artwork.
+            </p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3 19 6v5c0 4.7-2.8 8-7 10-4.2-2-7-5.3-7-10V6l7-3Z" />
+                <path d="M9.4 12.1 11 13.7l3.7-4" />
+              </svg>
+            </div>
+            <div>
+              <strong>Your artwork stays on this device</strong>
+              <span>PDF processing happens locally in your browser.</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="workspace-grid">
+          <section class="workbench" aria-labelledby="converter-title">
+            <div class="section-heading">
+              <div>
+                <p class="step-label">Step 1</p>
+                <h2 id="converter-title">Choose an Inkscape PDF</h2>
+              </div>
+              <span class="file-limit">PDF up to 50 MB</span>
+            </div>
+
+            <div id="dropZone" class="drop-zone">
+              <input
+                id="fileInput"
+                class="visually-hidden"
+                type="file"
+                accept=".pdf,application/pdf"
+              />
+              <div class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <path d="M7 3h12l6 6v20H7V3Z" />
+                  <path d="M19 3v7h7M16 23V13M12 17l4-4 4 4" />
+                </svg>
+              </div>
+              <h3>Drop your PDF here</h3>
+              <p>or select a file exported from Inkscape</p>
+              <button id="browseButton" class="secondary-button" type="button">
+                Browse files
+              </button>
+            </div>
+
+            <div id="statusPanel" class="status-panel" hidden>
+              <div id="statusSpinner" class="spinner" aria-hidden="true"></div>
+              <div>
+                <strong id="statusTitle">Inspecting PDF</strong>
+                <span id="statusMessage">Looking for vector cut lines...</span>
+              </div>
+            </div>
+
+            <div id="errorPanel" class="message-panel error-panel" role="alert" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 2.8 20h18.4L12 3Z" />
+                <path d="M12 8v6M12 17.2v.1" />
+              </svg>
+              <div>
+                <strong>We could not use this PDF</strong>
+                <span id="errorMessage"></span>
+              </div>
+            </div>
+
+            <section id="filePanel" class="file-panel" aria-labelledby="file-name" hidden>
+              <div class="file-row">
+                <div class="pdf-icon" aria-hidden="true">PDF</div>
+                <div class="file-details">
+                  <strong id="fileName"></strong>
+                  <span id="fileMetadata"></span>
+                </div>
+                <button id="replaceButton" class="text-button" type="button">
+                  Replace
+                </button>
+              </div>
+
+              <div class="detection-grid" aria-label="Detected cut-line candidates">
+                <div class="detection-card contour-detection">
+                  <span class="color-swatch magenta-swatch" aria-hidden="true"></span>
+                  <div>
+                    <strong id="contourCount">0</strong>
+                    <span>Magenta contour candidates</span>
+                  </div>
+                </div>
+                <div class="detection-card perf-detection">
+                  <span class="color-swatch red-swatch" aria-hidden="true"></span>
+                  <div>
+                    <strong id="perfCount">0</strong>
+                    <span>Red perf candidates</span>
+                  </div>
+                </div>
+              </div>
+              <p id="detectionNote" class="detection-note"></p>
+            </section>
+
+            <section id="modePanel" class="mode-panel" aria-labelledby="mode-title" hidden>
+              <div class="section-heading compact-heading">
+                <div>
+                  <p class="step-label">Step 2</p>
+                  <h2 id="mode-title">Choose the cut mapping</h2>
+                </div>
+              </div>
+
+              <fieldset class="mode-options">
+                <legend class="visually-hidden">Cut mapping</legend>
+                <label class="mode-card">
+                  <input type="radio" name="cutMode" value="auto" />
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                  <span class="mode-copy">
+                    <strong>Auto-detect</strong>
+                    <span>Magenta becomes contour; red becomes full perf.</span>
+                  </span>
+                  <span class="recommended-badge">Mixed files</span>
+                </label>
+                <label class="mode-card">
+                  <input type="radio" name="cutMode" value="contour" />
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                  <span class="mode-copy">
+                    <strong>Contour cut</strong>
+                    <span>Convert every detected line to CutContour.</span>
+                  </span>
+                </label>
+                <label class="mode-card">
+                  <input type="radio" name="cutMode" value="perf" />
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                  <span class="mode-copy">
+                    <strong>Full perf cut</strong>
+                    <span>Convert every detected line to PerfCutContour.</span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <button id="convertButton" class="primary-button" type="button">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M10 2v10M6 8l4 4 4-4M3 15v3h14v-3" />
+                </svg>
+                Create VersaWorks PDF
+              </button>
+            </section>
+
+            <section id="resultPanel" class="result-panel" aria-labelledby="result-title" hidden>
+              <div class="success-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2.8a9.2 9.2 0 1 1 0 18.4 9.2 9.2 0 0 1 0-18.4Z" />
+                  <path d="m7.8 12.1 2.7 2.7 5.7-6" />
+                </svg>
+              </div>
+              <div class="result-copy">
+                <h2 id="result-title">Your VersaWorks PDF is ready</h2>
+                <p id="resultMessage"></p>
+                <a id="downloadLink" class="primary-button download-button" download>
+                  Download converted PDF
+                </a>
+              </div>
+            </section>
+          </section>
+
+          <aside class="instructions-card" aria-labelledby="instructions-title">
+            <p class="eyebrow">Before you begin</p>
+            <h2 id="instructions-title">Prepare the cut path in Inkscape</h2>
+            <ol class="instruction-list">
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>Use a vector stroke</strong>
+                  <p>Keep the cut path as a thin stroked path, not a raster image.</p>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Choose the guide color</strong>
+                  <p>
+                    Use magenta <code>#FF00FF</code> for contour cuts or red
+                    <code>#FF0000</code> for full perf cuts.
+                  </p>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>Export as PDF</strong>
+                  <p>Keep vectors intact, then select that PDF in this app.</p>
+                </div>
+              </li>
+            </ol>
+            <div class="tip-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 18h6M10 21h4M8.2 15.5A7 7 0 1 1 15.8 15.5c-.8.7-1.2 1.4-1.3 2.5h-5c-.1-1.1-.5-1.8-1.3-2.5Z" />
+              </svg>
+              <p>
+                <strong>Always verify the result.</strong>
+                Confirm the cut-path preview and cutting settings in VersaWorks
+                before starting a job.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </main>
+
+      <footer>
+        <span>
+          Created with GitHub Copilot. Not affiliated with or endorsed by
+          Roland DG or Inkscape.
+        </span>
+        <a
+          href="https://github.com/AnalyticJeremy/inkscape_to_versaworks"
+          rel="noreferrer"
+        >
+          View source on GitHub
+        </a>
+      </footer>
+    </div>
+
+    <div id="announcer" class="visually-hidden" aria-live="polite"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
