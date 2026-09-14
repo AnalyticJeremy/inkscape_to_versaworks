@@ -6,6 +6,7 @@ import {
   PDFName,
   PDFRawStream,
   PDFStream,
+  PDFFlateStream,
 } from 'pdf-lib/es/core/index.js';
 
 import {
@@ -120,7 +121,9 @@ function decodeStream(stream: PDFStream, budget: DecodingBudget): string {
     const bytes =
       stream instanceof PDFRawStream
         ? decodePDFRawStream(stream).decode()
-        : stream.getContents();
+        : stream instanceof PDFFlateStream
+          ? stream.getUnencodedContents()
+          : stream.getContents();
     consumeBudget(bytes, budget);
     return bytesToLatin1(bytes);
   } catch (error) {

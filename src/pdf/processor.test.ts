@@ -1,6 +1,10 @@
 import PDFDocument from 'pdf-lib/es/api/PDFDocument.js';
 import { rgb, setStrokingColor } from 'pdf-lib/es/api/colors.js';
 import {
+  decodePDFRawStream,
+  PDFRawStream,
+} from 'pdf-lib/es/core/index.js';
+import {
   lineTo,
   moveTo,
   setLineWidth,
@@ -44,10 +48,18 @@ describe('PDF processing', () => {
   it('writes the exact VersaWorks spot-color names', async () => {
     const result = await convertPdf(await createTestPdf(), 'auto');
     const serialized = new TextDecoder('latin1').decode(result.output);
+    const converted = await PDFDocument.load(result.output);
+    const contents = converted.getPages()[0]?.node.Contents();
 
     expect(serialized).toContain('/CutContour');
     expect(serialized).toContain('/PerfCutContour');
     expect(serialized).toContain('/Separation');
-    expect(await PDFDocument.load(result.output)).toBeDefined();
+    expect(contents).toBeInstanceOf(PDFRawStream);
+
+    const decoded = decodePDFRawStream(contents as PDFRawStream).decode();
+    const contentText = String.fromCharCode(...decoded);
+    expect(contentText).not.toContain(String.fromCharCode(0x78, 0x9c));
+    expect(contentText.trimStart().startsWith('q')).toBe(true);
+    expect(contentText.trimEnd().endsWith('Q')).toBe(true);
   });
 });
